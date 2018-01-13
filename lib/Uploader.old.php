@@ -20,7 +20,6 @@ class Uploader
   protected $mimesBinary = array(
     //image type
     'image/jpeg' => "\xFF\xd8\xFF",
-    'image/jpg'  => "\xFF\xd8\xFF",
     'image/png'  => "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a",
     'image/gif'  => "\x47\x49\x46\x38\x39\x61",
 
@@ -46,43 +45,19 @@ class Uploader
     $this->setDestination($destination);
   }
 
-  public function upload($fileData)
-  {
-    if (is_array(is_array($fileData))) {
-      foreach ($fileData as $file) {
-        array_push($this->fileArray, $file);
+  public function upload($file)
+ {
+    if ($file, $this->validate(array('rename' => $this->renameIfTooLong))) {
+      $this->fileName = $this->setNewName();
+
+      if (move_uploaded_file($this->filePath, $this->destination . $this->fileName)) {
+        chmod($this->destination . $this->fileName, $this->default_permissions);
+        return $this->fileName;
       }
     }
-
-    if () {
-    }
+    
+    return false;
   }
-
-  //public function upload($file)
-  //{
-  //  if (empty($file)) {
-  //    $this->errors[] = 'Can not read the file you uploaded';
-  //    return false;
-  //  }
-
-  //  if ($error = $this->checkFileUploadError($file)) {
-  //    $this->error[] = $error;
-  //    return false;
-  //  }
-
-  //  $this->setData($file);
-
-  //  if ($this->validate(array('rename' => $this->renameIfTooLong))) {
-  //    $this->fileName = $this->setNewName();
-
-  //    if (move_uploaded_file($this->filePath, $this->destination . $this->fileName)) {
-  //      chmod($this->destination . $this->fileName, $this->default_permissions);
-  //      return $this->fileName;
-  //    }
-  //  }
-  //  
-  //  return false;
-  //}
 
   public function deleteFile($fileName)
   {
@@ -93,9 +68,25 @@ class Uploader
     return false;
   }
 
-  public function validate($options = array())
+  public function validate($file, $options = array())
   {
+    if (empty($file)) {
+      $this->errors[] = 'Can not read the file you uploaded';
+      return false;
+    }
+
+    if ($error = $this->checkFileUploadError($file)) {
+      $this->error[] = $error;
+      return false;
+    }
+
+    $this->setData($file);
+
     $this->renameIfTooLong = (isset($options['rename'])) ? $options['rename'] : false;
+
+    if ($error = $this->checkMimeBinaries()) {
+      $this->errors[] = $error;
+    }
 
     if ($error = $this->checkNameLength()) {
       if ($this->renameIfTooLong) {
@@ -106,10 +97,6 @@ class Uploader
     }
 
     if ($error = $this->checkSize()) {
-      $this->errors[] = $error;
-    }
-
-    if ($error = $this->checkMimeBinaries()) {
       $this->errors[] = $error;
     }
 
@@ -167,7 +154,7 @@ class Uploader
       return;
     }
 
-    foreach($typesArray as $type) {
+    foreach ($typesArray as $type) {
       if (in_array($type, array_keys($this->mimesBinary))) {
         $this->allowedMimesBinary[$type] = $this->mimesBinary[$type];
       }
@@ -203,7 +190,7 @@ class Uploader
   {
     $match = 0;
 
-    foreach($this->allowedMimesBinary as $type) {
+    foreach ($this->allowedMimesBinary as $type) {
       if (strncmp($type, $this->fileData, strlen($type)) === 0) {
         $match = 1;
         break;
